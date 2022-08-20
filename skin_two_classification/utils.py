@@ -2,10 +2,12 @@ import torch
 import adabound
 import os
 
+
 class AverageMeter(object):
     """Computes and stores the average and current value
        Imported from https://github.com/pytorch/examples/blob/master/imagenet/main.py#L247-L262
     """
+
     def __init__(self):
         self.reset()
 
@@ -32,13 +34,13 @@ def get_optimizer(model, args):
     # parameters = model.parameters()
     if args.optimizer == 'sgd':
         return torch.optim.SGD(parameters,
-                            # model.parameters(),
+                               # model.parameters(),
                                args.lr,
                                momentum=args.momentum, nesterov=args.nesterov,
                                weight_decay=args.weight_decay)
     elif args.optimizer == 'rmsprop':
         return torch.optim.RMSprop(parameters,
-                                # model.parameters(),
+                                   # model.parameters(),
                                    args.lr,
                                    alpha=args.alpha,
                                    weight_decay=args.weight_decay)
@@ -56,7 +58,6 @@ def get_optimizer(model, args):
         raise NotImplementedError
 
 
-
 def save_checkpoint(state, is_best, single=True, checkpoint='checkpoint', filename='checkpoint.pth.tar'):
     if single:
         fold = ''
@@ -70,21 +71,20 @@ def save_checkpoint(state, is_best, single=True, checkpoint='checkpoint', filena
     torch.save(state['state_dict'], curpath)
 
     if is_best:
-        model_name = 'model_' + str(state['epoch']) + '_' + str(int(round(state['train_acc']*100, 0))) + '_' + str(int(round(state['acc']*100, 0))) + '.pth'
+        model_name = 'model_' + str(state['epoch']) + '_' + str(int(round(state['train_acc'] * 100, 0))) + '_' + str(int(round(state['acc'] * 100, 0))) + '.pth'
         model_path = os.path.join(checkpoint, fold + model_name)
         torch.save(state['state_dict'], model_path)
 
 
-
-def accuracy(output, target,topk=(1,)):
+def accuracy(output, target, topk=(1,)):
     """Computes the precision@k for the specified values of k"""
     batch_size = target.size(0)
     # top1 accuracy
     maxk = max(topk)
-    _, pred = output.topk(maxk, 1, True, True) # 返回最大的k个结果（按最大到小排序）
-    
+    _, pred = output.topk(maxk, 1, True, True)  # 返回最大的k个结果（按最大到小排序）
+
     pred = pred.t()  # 转置
-    
+
     correct = pred.eq(target.view(1, -1).expand_as(pred))
     res = []
     for k in topk:
