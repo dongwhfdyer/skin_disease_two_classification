@@ -9,10 +9,15 @@ import argparse
 data_path = r"."
 train_txt_path = r"datasets/pig_if_complete/train.txt"
 val_txt_path = r"datasets/pig_if_complete/val.txt"
-batch_size = 16
+# test_data_path = "datasets/pig_if_complete/train/complete"
+# test_data_path = "datasets/pig_if_complete/train/incomplete"
+test_data_path =  "D:\ANewspace\code\pig_face_weight_correlation\datasets\selected_pig_all"
+
+batch_size = 4
 lr = 0.001
-mode = "train"
-pt_path = r""
+mode = "test"
+# mode = "train"
+pt_path = r"checkpoints/model_16_9283_9187.pth"
 img_size = 640
 # ---------kkuhn-block------------------------------
 parser = argparse.ArgumentParser()
@@ -23,7 +28,7 @@ parser.add_argument('--mode', type=str, default=mode, help='train or test')
 parser.add_argument('--dataset_path', type=str, default=data_path, help='the path to save imgs')
 # parser.add_argument('-dataset_txt_path',type=str,default='./dataset/small_dataset.txt')
 parser.add_argument('-train_txt_path', type=str, default=train_txt_path)
-# parser.add_argument('-test_txt_path',type=str,default='./dataset/test.txt')
+parser.add_argument('-test_txt_path', type=str, default=test_data_path)
 parser.add_argument('-val_txt_path', type=str, default=val_txt_path)
 
 # optimizer

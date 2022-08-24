@@ -3,6 +3,9 @@
 @ file_name: main.py
 @ time: 2019:11:20:11:24
 """
+import shutil
+from pathlib import Path
+
 from args import args
 import torch
 import torch.nn as nn
@@ -103,7 +106,8 @@ def train(train_loader, model, criterion, optimizer, epoch, use_cuda):
 
     for (inputs, targets) in tqdm(train_loader):
         if use_cuda:
-            inputs, targets = inputs.cuda(), targets.cuda(async=True)
+            inputs, targets = inputs.cuda(), targets.cuda()  # kuhn edited
+            # inputs, targets = inputs.cuda(), targets.cuda(async=True)
         inputs, targets = torch.autograd.Variable(inputs), torch.autograd.Variable(targets)
 
         # 梯度参数设为0
@@ -157,11 +161,24 @@ def val(val_loader, model, criterion, epoch, use_cuda):
     return losses.avg, val_acc.avg
 
 
+def delete_folders(*folder_path):
+    for folder in folder_path:
+        if os.path.exists(folder):
+            shutil.rmtree(folder)
+
+
+def create_folders(*folders):
+    for folder in folders:
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+
+
 def test(use_cuda):
     # data
     transformations = get_transforms(input_size=args.image_size, test_size=args.image_size)
-    test_set = data_gen.TestDataset(root=args.test_txt_path, transform=transformations['test'])
-    test_loader = data.DataLoader(test_set, batch_size=args.batch_size, shuffle=False)
+    test_set = data_gen.TestDataset_folder_as_input(root=args.test_txt_path, transform=transformations['test'])
+    # test_set = data_gen.TestDataset(root=args.test_txt_path, transform=transformations['test'])
+    test_loader = data.DataLoader(test_set, batch_size=args.batch_size, shuffle=True)
     # load model
     model = make_model(args)
 
@@ -200,7 +217,21 @@ def test(use_cuda):
         print("confusion_matrix=", confusion_matrix)
         print(metrics.classification_report(y_true, y_pred))
         # fpr,tpr,thresholds = metrics.roc_curve(y_true,y_pred)
-        print("roc-auc score=", metrics.roc_auc_score(y_true, y_pred))
+        # print("roc-auc score=", metrics.roc_auc_score(y_true, y_pred))
+        # ---------kkuhn-block------------------------------ todo. It's only for pig dataset spliting. If you see it, comment it.
+        pig_face_folder = Path(r"D:\ANewspace\code\pig_face_weight_correlation\datasets\pig_face_only")
+        delete_folders(pig_face_folder)
+        create_folders(pig_face_folder)
+
+        # delete_folders("rubb", "rubb/1", "rubb/0")
+        # create_folders("rubb", "rubb/1", "rubb/0")
+        # ---------kkuhn-block------------------------------
+
+        for i in range(len(y_pred)):
+            if y_pred[i] == 1:
+                shutil.copy(os.path.join(args.test_txt_path, img_paths[i]), pig_face_folder)
+            # else:
+            #     shutil.copy(os.path.join(args.test_txt_path, img_paths[i]), "rubb/0")
 
         res_dict = {
             'img_path': img_paths,
@@ -213,6 +244,129 @@ def test(use_cuda):
         print(f"write to {args.result_csv} succeed ")
 
 
+def test_only_for_pig_dataset(use_cuda):  # kuhn edited
+
+    # ---------kkuhn-block------------------------------ pig face folder
+    total_number = 1000
+    tbar = tqdm(total=total_number)
+    pig_face_folder = Path(r"D:\ANewspace\code\pig_face_weight_correlation\datasets\pig_face_only")
+    delete_folders(pig_face_folder)
+    create_folders(pig_face_folder)
+    # ---------kkuhn-block------------------------------
+    # data
+    transformations = get_transforms(input_size=args.image_size, test_size=args.image_size)
+    test_set = data_gen.TestDataset_folder_as_input(root=args.test_txt_path, transform=transformations['test'])
+    # test_set = data_gen.TestDataset(root=args.test_txt_path, transform=transformations['test'])
+    test_loader = data.DataLoader(test_set, batch_size=args.batch_size, shuffle=True)
+    # load model
+    model = make_model(args)
+
+    if args.model_path:
+        # 加载模型
+        model.load_state_dict(torch.load(args.model_path))
+
+    if use_cuda:
+        model.cuda()
+
+    # evaluate
+    y_pred = []
+    y_true = []
+    img_paths = []
+    with torch.no_grad():
+        model.eval()  # 设置成eval模式
+        for (inputs, targets, paths) in test_loader:
+            # for (inputs, targets, paths) in tqdm(test_loader):
+            y_true.extend(targets.detach().tolist())
+            img_paths.extend(list(paths))
+            if use_cuda:
+                inputs, targets = inputs.cuda(), targets.cuda()
+            inputs, targets = torch.autograd.Variable(inputs), torch.autograd.Variable(targets)
+            # compute output
+            outputs = model(inputs)  # (16,2)
+            # dim=1 表示按行计算 即对每一行进行softmax
+            # probability = torch.nn.functional.softmax(outputs,dim=1)[:,1].tolist()
+            # probability = [1 if prob >= 0.5 else 0 for prob in probability]
+            # 返回最大值的索引
+            probability = torch.max(outputs, dim=1)[1].data.cpu().numpy().squeeze()
+            y_pred.extend(probability)
+            # ---------kkuhn-block------------------------------ save the images if complete pig head is detected.
+            prob_list = probability.tolist()
+            for i in range(len(prob_list)):
+                if prob_list[i] == 1:
+                    shutil.copy(os.path.join(args.test_txt_path, paths[i]), pig_face_folder)
+                    tbar.update(1)
+                    if tbar.n == total_number:
+                        exit()
+            # ---------kkuhn-block------------------------------
+
+        res_dict = {
+            'img_path': img_paths,
+            'label': y_true,
+            'predict': y_pred,
+
+        }
+        df = pd.DataFrame(res_dict)
+        df.to_csv(args.result_csv, index=False)
+        print(f"write to {args.result_csv} succeed ")
+
+
+class getOutofLoop(Exception):
+    pass
+
+
+def generate_pig_face_only_data_for_regresssion():
+    original_agg_pig_dataset = Path(r"D:\ANewspace\code\pig_face_weight_correlation\datasets\pig_aggregated")
+    new_agg_pig_complete = Path(r"d:\ANewspace\code\pig_face_weight_correlation\datasets\new_agg_complete")
+
+    delete_folders(new_agg_pig_complete)
+    create_folders(new_agg_pig_complete)
+
+    # ---------kkuhn-block------------------------------ load model
+    model = make_model(args)
+
+    if args.model_path:
+        model.load_state_dict(torch.load(args.model_path))
+    model.cuda()
+
+    # ---------kkuhn-block------------------------------
+
+    def dataLoad_modelInference_imageSave(datafolder_path, savefolder_path):
+        transformations = get_transforms(input_size=args.image_size, test_size=args.image_size)
+        test_set = data_gen.TestDataset_folder_as_input(root=datafolder_path, transform=transformations['test'])
+        test_loader = data.DataLoader(test_set, batch_size=args.batch_size, shuffle=True)
+
+        with torch.no_grad():
+            model.eval()
+            for (inputs, targets, paths) in test_loader:
+                if use_cuda:
+                    inputs, targets = inputs.cuda(), targets.cuda()
+                inputs, targets = torch.autograd.Variable(inputs), torch.autograd.Variable(targets)
+                outputs = model(inputs)  # (16,2)
+
+                probability = torch.max(outputs, dim=1)[1].data.cpu().numpy().squeeze()
+                # ---------kkuhn-block------------------------------ save the images if complete pig head is detected.
+                probability.tolist()
+                prob_list = probability.tolist()
+                prob_list = [prob_list] if isinstance(prob_list, int) else prob_list # in case that prob_list has only one element.
+                for i in range(len(prob_list)):
+                    if prob_list[i] == 1:
+                        shutil.copy(os.path.join(args.test_txt_path, paths[i]), savefolder_path)
+                        tbar.update(1)
+                        if tbar.n == enough_num:
+                            raise getOutofLoop()
+                # ---------kkuhn-block------------------------------
+
+    for id_folder in original_agg_pig_dataset.iterdir():
+        enough_num = 100
+        tbar = tqdm(total=enough_num)
+        save_folder = new_agg_pig_complete / id_folder.name
+        create_folders(save_folder)
+        try:
+            dataLoad_modelInference_imageSave(id_folder, save_folder)
+        except getOutofLoop:
+            pass
+
+
 if __name__ == "__main__":
     # main()
     # 划分数据集
@@ -221,4 +375,7 @@ if __name__ == "__main__":
     if args.mode == 'train':
         main()
     else:
-        test(use_cuda)
+        # test(use_cuda)
+        # test_only_for_pig_dataset(use_cuda)
+
+        generate_pig_face_only_data_for_regresssion()

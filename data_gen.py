@@ -3,6 +3,8 @@
 @ file_name: data_gen.py
 @ time: 2019:11:15:20:39
 """
+from pathlib import Path
+
 from torch.utils.data import Dataset
 import os
 import glob
@@ -95,6 +97,44 @@ class ValDataset(Dataset):
                 return self[index + 1]
 
         return (img, int(label))
+
+
+class TestDataset_folder_as_input():
+    def __init__(self, root, transform=None):
+        '''
+        root:保存测试数据集路径的txt
+        transforms: 进行数据增强
+        '''
+        root = Path(root)
+        img_paths = os.listdir(root)
+        img_paths = [os.path.join(root, img_path) for img_path in img_paths]
+
+        self.length = len(img_paths) - 1
+        self.transform = transform
+        self.env = img_paths
+
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, index):
+        assert index <= len(self), 'index range error'
+        img_path = self.env[index]
+        # index += 1
+        try:
+            img = Image.open(img_path)
+        except:
+            print(img_path)
+            return self[index + 1]
+
+        if self.transform is not None:
+            try:
+                img = self.transform(img)
+            except Exception as e:
+                # print(e)
+                # print(img_path)
+                return self[index + 1]
+
+        return (img, 0, Path(img_path).name)
 
 
 class TestDataset(Dataset):
@@ -210,8 +250,14 @@ def write_dataset_to_txt(data_set, txt_path):
 
 if __name__ == "__main__":
     #     # 只调用一次
-    Split_datatset(args.dataset_txt_path, args.train_txt_path, args.test_txt_path)
-    Split_datatset(args.train_txt_path, args.train_txt_path, args.val_txt_path)
+    # ---------kkuhn-block------------------------------ original data
+    # Split_datatset(args.dataset_txt_path, args.train_txt_path, args.test_txt_path)
+    # Split_datatset(args.train_txt_path, args.train_txt_path, args.val_txt_path)
+    # ---------kkuhn-block------------------------------
+
+    td = TestDataset_folder_as_input("D:\ANewspace\code\pig_face_weight_correlation\datasets\ear_mouth_nose_2")
+    print(td[0])
+
     # data = Dataset(args.train_txt_path)
     # print(data.__getitem__(2))
 #     data = TestDataset(args.test_txt_path)

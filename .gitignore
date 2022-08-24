@@ -1,2 +1,7 @@
 /datasets/
 /skin_two_classification/
+/checkpoints/
+/.pytest_cache/
+/.idea/
+/rubb/
+checkpoints/resnet50-19c8e357.pth
