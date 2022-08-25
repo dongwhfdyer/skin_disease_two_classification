@@ -5,6 +5,7 @@
 """
 from pathlib import Path
 
+import torch
 from torch.utils.data import Dataset
 import os
 import glob
@@ -45,6 +46,8 @@ class Dataset(Dataset):
         try:
             img = Image.open(img_path)
         except:
+            import warnings
+            warnings.warn("Can not open image", UserWarning)
             print(img_path)
             return self[index + 1]
 
@@ -55,8 +58,12 @@ class Dataset(Dataset):
                 img = self.transform(img)
             except Exception as e:
                 return self[index + 1]
-
-        return (img, int(label))
+        # label = torch.Tensor(label)
+        if args.if_regression:
+            # label = torch.reshape(torch.from_numpy(np.array(int("64"))), (-1, 1))
+            return (img, int(label))
+        else:
+            return (img, int(label))
 
 
 class ValDataset(Dataset):

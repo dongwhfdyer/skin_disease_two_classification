@@ -3,7 +3,9 @@
 @ file_name: main.py
 @ time: 2019:11:20:11:24
 """
+import logging
 import shutil
+import time
 from pathlib import Path
 
 from args import args
@@ -16,7 +18,7 @@ import torch.utils.data as data
 import torchvision.transforms as transforms
 from transform import get_transforms
 import os
-from build_net import make_model
+from build_net import make_model, log_mse_loss, make_regression_model
 from utils import get_optimizer, AverageMeter, save_checkpoint, accuracy
 import torchnet.meter as meter
 import pandas as pd
@@ -27,6 +29,8 @@ torch.cuda.set_device(0)
 use_cuda = torch.cuda.is_available()
 # use_cuda = False
 
+logger = logging.getLogger("main")
+logger.setLevel(logging.DEBUG)
 
 best_acc = 0
 
@@ -34,27 +38,31 @@ best_acc = 0
 def main():
     global best_acc
 
-    if not os.path.isdir(args.checkpoint):
-        os.makedirs(args.checkpoint)
+    time_now = time.strftime('%m_%d_%H_%M', time.localtime(time.time()))
+    checkpoints_path = os.path.join(args.checkpoint, str(time_now))
 
-    # data
+    create_folders(checkpoints_path)
+
     transformations = get_transforms(input_size=args.image_size, test_size=args.image_size)
     train_set = data_gen.Dataset(root=args.train_txt_path, transform=transformations['val_train'])
-    train_loader = data.DataLoader(train_set, batch_size=args.batch_size, shuffle=True)
+    train_loader = data.DataLoader(train_set, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
 
     val_set = data_gen.ValDataset(root=args.val_txt_path, transform=transformations['val_test'])
-    val_loader = data.DataLoader(val_set, batch_size=args.batch_size, shuffle=False)
+    val_loader = data.DataLoader(val_set, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
 
-    # model
-    model = make_model(args)
+    model = make_regression_model(args)
+    # model = make_model(args)
     if use_cuda:
         model.cuda()
 
-    # define loss function and optimizer
-    if use_cuda:
-        criterion = nn.CrossEntropyLoss().cuda()
+    if args.if_regression:
+        # criterion = log_mse_loss()
+        criterion = nn.MSELoss()
     else:
         criterion = nn.CrossEntropyLoss()
+
+    if use_cuda:
+        criterion = criterion.cuda()
 
     optimizer = get_optimizer(model, args)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.2, patience=5, verbose=False)
@@ -76,13 +84,17 @@ def main():
         print('\nEpoch: [%d | %d] LR: %f' % (epoch + 1, args.epochs, optimizer.param_groups[0]['lr']))
 
         train_loss, train_acc = train(train_loader, model, criterion, optimizer, epoch, use_cuda)
-        test_loss, val_acc = val(val_loader, model, criterion, epoch, use_cuda)
+        if args.if_regression:
+            # print('Train Loss: %.8f' % train_loss)
+            test_loss, val_acc = val_for_regression(val_loader, model, criterion, epoch, use_cuda)
+        else:
+            test_loss, val_acc = val(val_loader, model, criterion, epoch, use_cuda)
 
         scheduler.step(test_loss)
 
         print(f'train_loss:{train_loss}\t val_loss:{test_loss}\t train_acc:{train_acc} \t val_acc:{val_acc}')
-
-        # save_model
+        mem = torch.cuda.memory_reserved() / 1E9 if torch.cuda.is_available() else 0  # (GB)
+        print(f'Memory used: {mem} GB')
         is_best = val_acc >= best_acc
         best_acc = max(val_acc, best_acc)
 
@@ -94,7 +106,7 @@ def main():
             'acc': val_acc,
             'best_acc': best_acc,
             'optimizer': optimizer.state_dict(),
-        }, is_best, single=True, checkpoint=args.checkpoint)
+        }, is_best, single=True, checkpoint=checkpoints_path)
 
     print("best acc = ", best_acc)
 
@@ -107,27 +119,50 @@ def train(train_loader, model, criterion, optimizer, epoch, use_cuda):
     for (inputs, targets) in tqdm(train_loader):
         if use_cuda:
             inputs, targets = inputs.cuda(), targets.cuda()  # kuhn edited
+            targets = torch.reshape(targets, (-1, 1))
             # inputs, targets = inputs.cuda(), targets.cuda(async=True)
         inputs, targets = torch.autograd.Variable(inputs), torch.autograd.Variable(targets)
 
-        # 梯度参数设为0
         optimizer.zero_grad()
-
-        # forward
         outputs = model(inputs)
-        loss = criterion(outputs, targets)
-
-        # compute gradient and do SGD step
+        logger.debug(f'outputs:{outputs * 150.0}')
+        if args.if_regression:
+            loss = criterion(outputs, targets / 150.0)
+        else:
+            loss = criterion(outputs, targets)
         loss.backward()
         optimizer.step()
 
-        # measure accuracy and record loss
         acc = accuracy(outputs.data, targets.data)
-        # inputs.size(0)=32
+
         losses.update(loss.item(), inputs.size(0))
         train_acc.update(acc.item(), inputs.size(0))
 
     return losses.avg, train_acc.avg
+
+
+def val_for_regression(val_loader, model, criterion, epoch, use_cuda):
+    global best_acc
+    losses = AverageMeter()
+    val_acc = AverageMeter()
+
+    model.eval()
+    # 混淆矩阵
+    with torch.no_grad():
+        for _, (inputs, targets) in enumerate(val_loader):
+            if use_cuda:
+                inputs, targets = inputs.cuda(), targets.cuda()
+            targets = torch.reshape(targets, (-1, 1))
+            inputs, targets = torch.autograd.Variable(inputs), torch.autograd.Variable(targets)
+
+            # compute output
+            outputs = model(inputs)
+            loss = criterion(outputs, targets / 150.0)
+            acc1 = accuracy(outputs.data, targets.data)
+
+            losses.update(loss.item(), inputs.size(0))
+            val_acc.update(acc1.item(), inputs.size(0))
+    return losses.avg, val_acc.avg
 
 
 def val(val_loader, model, criterion, epoch, use_cuda):
@@ -347,7 +382,7 @@ def generate_pig_face_only_data_for_regresssion():
                 # ---------kkuhn-block------------------------------ save the images if complete pig head is detected.
                 probability.tolist()
                 prob_list = probability.tolist()
-                prob_list = [prob_list] if isinstance(prob_list, int) else prob_list # in case that prob_list has only one element.
+                prob_list = [prob_list] if isinstance(prob_list, int) else prob_list  # in case that prob_list has only one element.
                 for i in range(len(prob_list)):
                     if prob_list[i] == 1:
                         shutil.copy(os.path.join(args.test_txt_path, paths[i]), savefolder_path)

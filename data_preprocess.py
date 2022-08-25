@@ -36,5 +36,6 @@ def generate_data_info_txt_for_pig_dataset():
     #
 
 
+
 if __name__ == '__main__':
     generate_data_info_txt_for_pig_dataset()
