@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="pcl@120.26.167.153:8023 password" remoteFilesAllowedToDisappearOnAutoupload="false">
+  <component name="PublishConfigData" autoUpload="Always" serverName="vixkyy" remoteFilesAllowedToDisappearOnAutoupload="false" showAutoUploadSettingsWarning="false">
     <serverData>
       <paths name="ma-user@dev-modelarts-cnsouth222.cloudbrain2.pcl.ac.cn:30976 key">
         <serverdata>
@@ -77,6 +77,10 @@
             <excludedPath local="true" path="$PROJECT_DIR$/checkpoints" />
             <excludedPath path="/kuhn/skin_disease_two_classification/dataset" />
             <excludedPath path="/kuhn/skin_disease_two_classification/checkpoints" />
+            <excludedPath local="true" path="$PROJECT_DIR$/rubb" />
+            <excludedPath local="true" path="$PROJECT_DIR$/tensorboard_log" />
+            <excludedPath local="true" path="$PROJECT_DIR$/.pytest_cache" />
+            <excludedPath local="true" path="$PROJECT_DIR$/models" />
           </excludedPaths>
         </serverdata>
       </paths>
@@ -92,6 +96,27 @@
           <mappings>
             <mapping local="$PROJECT_DIR$" web="/" />
           </mappings>
+        </serverdata>
+      </paths>
+      <paths name="vixkyy">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/skin_disease_two_classification" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+          <excludedPaths>
+            <excludedPath local="true" path="$PROJECT_DIR$/.idea" />
+            <excludedPath local="true" path="$PROJECT_DIR$/.pytest_cache" />
+            <excludedPath local="true" path="$PROJECT_DIR$/checkpoints" />
+            <excludedPath local="true" path="$PROJECT_DIR$/datasets" />
+            <excludedPath local="true" path="$PROJECT_DIR$/rubb" />
+            <excludedPath path="/skin_disease_two_classification/__pycache__" />
+            <excludedPath path="/skin_disease_two_classification/checkpoints" />
+            <excludedPath path="/skin_disease_two_classification/datasets" />
+            <excludedPath path="/skin_disease_two_classification/tensorboard_log" />
+            <excludedPath path="/skin_disease_two_classification/rubb" />
+            <excludedPath local="true" path="$PROJECT_DIR$/models" />
+            <excludedPath local="true" path="$PROJECT_DIR$/tensorboard_log" />
+          </excludedPaths>
         </serverdata>
       </paths>
     </serverData>

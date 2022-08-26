@@ -56,21 +56,14 @@ def make_model(args):
     #     param.requires_grad = False
     # 最后一层全连接层
     fc_inputs = model.fc.in_features
-    if args.if_regression:
-        model.fc = nn.Sequential(
-            nn.Linear(fc_inputs, 256),
-            nn.ReLU(),
-            nn.Dropout(0.4),
-            nn.Linear(256, 1),
-        )
-        print("=> creating model 1")
-    else:
-        model.fc = nn.Sequential(
-            nn.Linear(fc_inputs, 256),
-            nn.ReLU(),
-            nn.Dropout(0.4),
-            nn.Linear(256, args.num_classes),
-        )
+
+    model.fc = nn.Sequential(
+        nn.Linear(fc_inputs, 256),
+        nn.ReLU(),
+        nn.Dropout(0.4),
+        nn.Linear(256, args.num_classes),
+        nn.LeakyReLU(),
+    )
     return model
 
 

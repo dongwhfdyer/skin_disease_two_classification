@@ -58,12 +58,15 @@ class Dataset(Dataset):
                 img = self.transform(img)
             except Exception as e:
                 return self[index + 1]
-        # label = torch.Tensor(label)
+        # convert label to onehot encoding
         if args.if_regression:
-            # label = torch.reshape(torch.from_numpy(np.array(int("64"))), (-1, 1))
-            return (img, int(label))
+            return img, int(label)
         else:
-            return (img, int(label))
+            # label = int(label)
+            # onehot_label = torch.zeros(args.num_classes)
+            # onehot_label[label] = 1
+            # return img, onehot_label
+            return img, int(label)
 
 
 class ValDataset(Dataset):
@@ -102,8 +105,16 @@ class ValDataset(Dataset):
                 # print(e)
                 # print(img_path)
                 return self[index + 1]
+        # convert label to onehot encoding
+        if args.if_regression:
+            return img, int(label)
+        else:
+            # label = int(label)
+            # onehot_label = torch.zeros(args.num_classes)
+            # onehot_label[label] = 1
+            # return img, onehot_label
+            return img, int(label)
 
-        return (img, int(label))
 
 
 class TestDataset_folder_as_input():

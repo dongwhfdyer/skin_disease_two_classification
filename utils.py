@@ -1,6 +1,9 @@
 import torch
 # import adabound
 import os
+import logging
+
+logger = logging.getLogger('global')
 
 
 class AverageMeter(object):
@@ -74,9 +77,10 @@ def save_checkpoint(state, is_best, single=True, checkpoint='checkpoint', filena
         model_name = 'model_' + str(state['epoch']) + '_' + str(int(round(state['train_acc'] * 100, 0))) + '_' + str(int(round(state['acc'] * 100, 0))) + '.pth'
         model_path = os.path.join(checkpoint, fold + model_name)
         torch.save(state['state_dict'], model_path)
+        logger.info("update best model")
 
 
-def accuracy(output, target, topk=(1,)):
+def accuracy(output, target, topk=(1,), if_regression=False):
     """Computes the precision@k for the specified values of k"""
     batch_size = target.size(0)
     # top1 accuracy
@@ -90,4 +94,9 @@ def accuracy(output, target, topk=(1,)):
     for k in topk:
         correct_k = correct[:k].view(-1).float().sum(0)
         res = correct_k.mul_(100.0 / batch_size)
+
+
+
     return res
+
+

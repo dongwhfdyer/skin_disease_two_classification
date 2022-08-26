@@ -238,7 +238,7 @@ class resnet50_output_1(ResNet):
         x = self.avgpool(x)
         x = x.reshape(x.size(0), -1)
         x = self.fc(x)
-        x = torch.exp(x)
+        # x = torch.exp(x)
 
 
         return x

@@ -5,47 +5,109 @@
 """
 import argparse
 
-# ---------kkuhn-block------------------------------ binary classification settings
-data_path = r"."
-train_txt_path = r"datasets/pig_if_complete_0825/train.txt"
-val_txt_path = r"datasets/pig_if_complete_0825/val.txt"
+# # ---------kkuhn-block------------------------------ binary classification train settings
+# data_path = r"datasets/pig_if_complete_0825"
+# train_txt_path = r"datasets/pig_if_complete_0825/train.txt"
+# val_txt_path = r"datasets/pig_if_complete_0825/val.txt"
+# # test_data_path = "datasets/pig_if_complete/train/complete"
+# # test_data_path = "datasets/pig_if_complete/train/incomplete"
+# test_data_path = "D:\ANewspace\code\pig_face_weight_correlation\datasets\selected_pig_all"
+# output_data_path = r"rubb/pig_face_only" # useless here
+#
+# batch_size = 16
+# num_workers = 10
+# # batch_size = 4
+# # num_workers = 4
+# lr = 0.001
+# # mode = "test"
+# mode = "train"
+# # pt_path = r"checkpoints/model_16_9283_9187.pth"
+# pt_path = r"checkpoints/resnet50-19c8e357.pth"
+# # pt_path = r"models/model_cur.pth"
+#
+# img_size = 512
+# if_regression = False
+# optimizer = "adam"
+# epochs = 300
+# only_inference = False
+# save_prefix = "binary_cls"
+# # ---------kkuhn-block------------------------------
+
+# # ---------kkuhn-block------------------------------ binary classification test settings
+# data_path = r"datasets/pig_if_complete_0825"
+# train_txt_path = r"datasets/pig_if_complete_0825/train.txt"
+# val_txt_path = r"datasets/pig_if_complete_0825/val.txt"
+# # test_data_path = "datasets/pig_if_complete/train/complete"
+# # test_data_path = "datasets/pig_if_complete/train/incomplete"
+# # test_data_path = "D:\ANewspace\code\pig_face_weight_correlation\datasets\selected_pig_all"
+# test_data_path = val_txt_path
+# output_data_path = r"rubb/pig_face_only"
+# batch_size = 4
+# num_workers = 4
+# # batch_size = 28
+# # num_workers = 10
+# lr = 0.001
+# mode = "test"
+# # pt_path = r"checkpoints/model_16_9283_9187.pth"
+# # pt_path = r"models/binary_cls_if_pighead_complete_v1.pth"
+# pt_path = r"models/model_11_8290_8970.pth"
+#
+# img_size = 416
+# if_regression = False
+# optimizer = "adam"
+# epochs = 300
+# only_inference = True
+# save_prefix = "binary_cls"
+# # ---------kkuhn-block------------------------------
+
+# ---------kkuhn-block------------------------------ weight regression train settings
+data_path = r"datasets/exact_face_only_cleaned_train_val"
+train_txt_path = r"datasets/exact_face_only_cleaned_train_val/train.txt"
+val_txt_path = r"datasets/exact_face_only_cleaned_train_val/val.txt"
 # test_data_path = "datasets/pig_if_complete/train/complete"
 # test_data_path = "datasets/pig_if_complete/train/incomplete"
-test_data_path = "D:\ANewspace\code\pig_face_weight_correlation\datasets\selected_pig_all"
-batch_size = 4
-lr = 0.001
+test_data_path = "D:/ANewspace/code/pig_face_weight_correlation/datasets/selected_pig_all"
+output_data_path = r"rubb/pig_face_only" # useless here
+batch_size = 16
+num_workers = 10
+# batch_size = 4
+# num_workers = 4
+
+lr = 0.0007
 # mode = "test"
 mode = "train"
-pt_path = r"checkpoints/model_16_9283_9187.pth"
-img_size = 640
-if_regression = False
+pt_path = r"checkpoints/resnet50-19c8e357.pth"
+img_size = 512
+if_regression = True
 optimizer = "adam"
-num_workers = 4
-epochs = 100
-
-
+epochs = 300
+only_inference = False
+save_prefix = "weight_regression"
 # ---------kkuhn-block------------------------------
 
-# # ---------kkuhn-block------------------------------ weight regression settings
+# # ---------kkuhn-block------------------------------ weight regression test settings
 # data_path = r"datasets/exact_face_only_cleaned_train_val"
 # train_txt_path = r"datasets/exact_face_only_cleaned_train_val/train.txt"
 # val_txt_path = r"datasets/exact_face_only_cleaned_train_val/val.txt"
 # # test_data_path = "datasets/pig_if_complete/train/complete"
 # # test_data_path = "datasets/pig_if_complete/train/incomplete"
-# test_data_path = "D:/ANewspace/code/pig_face_weight_correlation/datasets/selected_pig_all"
-# batch_size = 28
-# num_workers = 10
-# # batch_size = 4
-# # num_workers = 4
+# test_data_path = train_txt_path
+# # test_data_path = val_txt_path
+# # test_data_path = "D:/ANewspace/code/pig_face_weight_correlation/datasets/selected_pig_all"
+# # batch_size = 28
+# # num_workers = 10
+# batch_size = 4
+# num_workers = 4
 #
 # lr = 0.0007
-# # mode = "test"
-# mode = "train"
-# pt_path = r"checkpoints/resnet50-19c8e357.pth"
+# mode = "test"
+# pt_path = r"models/model_100_0_0.pth"
 # img_size = 416
 # if_regression = True
 # optimizer = "adam"
-# epochs = 100
+# epochs = 300
+# only_inference = False
+# save_prefix = "binary_cls"
 # # ---------kkuhn-block------------------------------
 
 parser = argparse.ArgumentParser()
@@ -94,5 +156,8 @@ parser.add_argument('--model_path', default=pt_path, type=str)
 parser.add_argument('--result_csv', default='./result.csv')
 parser.add_argument('--if_regression', default=if_regression, help="if regression, then and the model will output one value and will use regression loss.")
 parser.add_argument('--num_workers', default=num_workers)
+parser.add_argument('--only_inference', default=only_inference, help="if only inference, then the dataset will have no labels")
+parser.add_argument("--output_path", default=output_data_path, help="only used when testing. Also, it's optional")
+parser.add_argument("--save_prefix", default=save_prefix, help="config save prefix. used to distinguish different task")
 
 args = parser.parse_args()

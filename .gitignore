@@ -2,6 +2,9 @@
 /skin_two_classification/
 /checkpoints/
 /.pytest_cache/
-/.idea/
+/.idea/*
 /rubb/
 checkpoints/resnet50-19c8e357.pth
+.idea/deployment.xml
+/models/
+/tensorboard_log/

@@ -6,7 +6,12 @@
 import logging
 import shutil
 import time
+
+import yaml
+from tensorboardX import SummaryWriter
 from pathlib import Path
+
+import numpy as np
 
 from args import args
 import torch
@@ -18,7 +23,7 @@ import torch.utils.data as data
 import torchvision.transforms as transforms
 from transform import get_transforms
 import os
-from build_net import make_model, log_mse_loss, make_regression_model
+from build_net import make_model, make_regression_model
 from utils import get_optimizer, AverageMeter, save_checkpoint, accuracy
 import torchnet.meter as meter
 import pandas as pd
@@ -29,7 +34,7 @@ torch.cuda.set_device(0)
 use_cuda = torch.cuda.is_available()
 # use_cuda = False
 
-logger = logging.getLogger("main")
+logger = logging.getLogger("global")
 logger.setLevel(logging.DEBUG)
 
 best_acc = 0
@@ -39,9 +44,18 @@ def main():
     global best_acc
 
     time_now = time.strftime('%m_%d_%H_%M', time.localtime(time.time()))
-    checkpoints_path = os.path.join(args.checkpoint, str(time_now))
+
+    checkpoints_path = Path(args.checkpoint) / (args.save_prefix + "_" + str(time_now))
+    tensorboard_log_path = Path("tensorboard_log")
+    writer = SummaryWriter(str(tensorboard_log_path / time_now))
 
     create_folders(checkpoints_path)
+
+    with open(checkpoints_path / 'opt.yaml', 'w') as f:
+        # save arguments to yaml file
+        yaml.dump(vars(args), f, default_flow_style=False, sort_keys=False)
+    logger.info(f'Arguments: {args}')
+    logger.info(f'Checkpoints will be saved to {checkpoints_path}')
 
     transformations = get_transforms(input_size=args.image_size, test_size=args.image_size)
     train_set = data_gen.Dataset(root=args.train_txt_path, transform=transformations['val_train'])
@@ -49,14 +63,22 @@ def main():
 
     val_set = data_gen.ValDataset(root=args.val_txt_path, transform=transformations['val_test'])
     val_loader = data.DataLoader(val_set, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
+    if args.if_regression:
+        model = make_regression_model(args)
+    else:
+        model = make_model(args)
 
-    model = make_regression_model(args)
-    # model = make_model(args)
+    # save model architecture to json file
+    with open(checkpoints_path / 'model.json', 'w') as f:
+        f.write(model.__repr__())
+
+
+
+
     if use_cuda:
         model.cuda()
 
     if args.if_regression:
-        # criterion = log_mse_loss()
         criterion = nn.MSELoss()
     else:
         criterion = nn.CrossEntropyLoss()
@@ -93,6 +115,9 @@ def main():
         scheduler.step(test_loss)
 
         print(f'train_loss:{train_loss}\t val_loss:{test_loss}\t train_acc:{train_acc} \t val_acc:{val_acc}')
+        writer.add_scalar('train_loss', train_loss, epoch)
+        writer.add_scalar('val_loss', test_loss, epoch)
+
         mem = torch.cuda.memory_reserved() / 1E9 if torch.cuda.is_available() else 0  # (GB)
         print(f'Memory used: {mem} GB')
         is_best = val_acc >= best_acc
@@ -111,6 +136,9 @@ def main():
     print("best acc = ", best_acc)
 
 
+loss_bias = 17.0  # loss is too big, so we add loss_bias to avoid it.
+
+
 def train(train_loader, model, criterion, optimizer, epoch, use_cuda):
     model.train()
     losses = AverageMeter()
@@ -119,21 +147,21 @@ def train(train_loader, model, criterion, optimizer, epoch, use_cuda):
     for (inputs, targets) in tqdm(train_loader):
         if use_cuda:
             inputs, targets = inputs.cuda(), targets.cuda()  # kuhn edited
+        if args.if_regression:
             targets = torch.reshape(targets, (-1, 1))
             # inputs, targets = inputs.cuda(), targets.cuda(async=True)
         inputs, targets = torch.autograd.Variable(inputs), torch.autograd.Variable(targets)
 
         optimizer.zero_grad()
         outputs = model(inputs)
-        logger.debug(f'outputs:{outputs * 150.0}')
+        # logger.debug(f'outputs:{outputs * 150.0}')
         if args.if_regression:
-            loss = criterion(outputs, targets / 150.0)
+            loss = criterion(outputs, targets / loss_bias)
         else:
             loss = criterion(outputs, targets)
         loss.backward()
         optimizer.step()
-
-        acc = accuracy(outputs.data, targets.data)
+        acc = accuracy(outputs.data, targets.data, if_regression=args.if_regression)
 
         losses.update(loss.item(), inputs.size(0))
         train_acc.update(acc.item(), inputs.size(0))
@@ -157,7 +185,7 @@ def val_for_regression(val_loader, model, criterion, epoch, use_cuda):
 
             # compute output
             outputs = model(inputs)
-            loss = criterion(outputs, targets / 150.0)
+            loss = criterion(outputs, targets / loss_bias)
             acc1 = accuracy(outputs.data, targets.data)
 
             losses.update(loss.item(), inputs.size(0))
@@ -172,27 +200,31 @@ def val(val_loader, model, criterion, epoch, use_cuda):
 
     model.eval()  # 将模型设置为验证模式
     # 混淆矩阵
-    confusion_matrix = meter.ConfusionMeter(args.num_classes)
-    for _, (inputs, targets) in enumerate(val_loader):
-        if use_cuda:
-            inputs, targets = inputs.cuda(), targets.cuda()
-        inputs, targets = torch.autograd.Variable(inputs), torch.autograd.Variable(targets)
+    with torch.no_grad():
+        confusion_matrix = meter.ConfusionMeter(args.num_classes)
+        for _, (inputs, targets) in enumerate(val_loader):
+            if use_cuda:
+                inputs, targets = inputs.cuda(), targets.cuda()
+            inputs, targets = torch.autograd.Variable(inputs), torch.autograd.Variable(targets)
+            targets_onehot = torch.zeros(targets.size(0), args.num_classes).cuda()
+            targets_onehot.scatter_(1, targets.view(-1, 1), 1)
+            targets_onehot = targets_onehot.cuda()
 
-        # compute output
-        outputs = model(inputs)
-        loss = criterion(outputs, targets)
-        confusion_matrix.add(outputs.data.squeeze(), targets.long())
-        acc1 = accuracy(outputs.data, targets.data)
+            # compute output
+            outputs = model(inputs)
+            loss = criterion(outputs, targets)
+            confusion_matrix.add(outputs.data.squeeze(), targets_onehot.data.long().squeeze())
+            acc1 = accuracy(outputs.data, targets.data)
 
-        # compute accuracy by confusion matrix
-        # cm_value = confusion_matrix.value()
-        # acc2 = 0
-        # for i in range(args.num_classes):
-        #     acc2 += 100. * cm_value[i][i]/(cm_value.sum())
+            # compute accuracy by confusion matrix
+            # cm_value = confusion_matrix.value()
+            # acc2 = 0
+            # for i in range(args.num_classes):
+            #     acc2 += 100. * cm_value[i][i]/(cm_value.sum())
 
-        # measure accuracy and record loss
-        losses.update(loss.item(), inputs.size(0))
-        val_acc.update(acc1.item(), inputs.size(0))
+            # measure accuracy and record loss
+            losses.update(loss.item(), inputs.size(0))
+            val_acc.update(acc1.item(), inputs.size(0))
     return losses.avg, val_acc.avg
 
 
@@ -211,8 +243,10 @@ def create_folders(*folders):
 def test(use_cuda):
     # data
     transformations = get_transforms(input_size=args.image_size, test_size=args.image_size)
-    test_set = data_gen.TestDataset_folder_as_input(root=args.test_txt_path, transform=transformations['test'])
-    # test_set = data_gen.TestDataset(root=args.test_txt_path, transform=transformations['test'])
+    if args.only_inference:
+        test_set = data_gen.TestDataset_folder_as_input(root=args.test_txt_path, transform=transformations['test'])
+    else:
+        test_set = data_gen.TestDataset(root=args.test_txt_path, transform=transformations['test'])
     test_loader = data.DataLoader(test_set, batch_size=args.batch_size, shuffle=True)
     # load model
     model = make_model(args)
@@ -279,19 +313,80 @@ def test(use_cuda):
         print(f"write to {args.result_csv} succeed ")
 
 
-def test_only_for_pig_dataset(use_cuda):  # kuhn edited
+def test_for_regression(use_cuda):
+    transformations = get_transforms(input_size=args.image_size, test_size=args.image_size)
+    if args.only_inference:
+        test_set = data_gen.TestDataset_folder_as_input(root=args.test_txt_path, transform=transformations['test'])
+    else:
+        test_set = data_gen.TestDataset(root=args.test_txt_path, transform=transformations['test'])
+    test_loader = data.DataLoader(test_set, batch_size=args.batch_size, shuffle=True)
 
+    model = make_regression_model(args)
+    if args.model_path:
+        model.load_state_dict(torch.load(args.model_path))
+    if use_cuda:
+        model.cuda()
+
+    y_pred = []
+    y_true = []
+    img_paths = []
+    with torch.no_grad():
+        model.eval()
+        for (inputs, targets, paths) in tqdm(test_loader):
+            y_true.extend(targets.detach().tolist())
+            img_paths.extend(list(paths))
+            if use_cuda:
+                inputs, targets = inputs.cuda(), targets.cuda()
+            inputs, targets = torch.autograd.Variable(inputs), torch.autograd.Variable(targets)
+
+            outputs = model(inputs) * 150.0
+            # convert to int
+            outputs = [int(elm.data.cpu().numpy().squeeze()) for elm in outputs]
+
+            y_pred.extend(outputs)
+        print("y_pred=", y_pred)
+
+        # if error is less than 10, then it's ok.
+        error = [abs(y_true[i] - y_pred[i]) for i in range(len(y_true))]
+        ok_list = [i for i in range(len(y_true)) if error[i] < 10]
+        precision = len(ok_list) / len(y_true)
+        # print("precision=", precision)
+        # print("error_mean=", np.mean(error))
+        # print("error_std=", np.std(error))
+        # print("error_max=", np.max(error))
+        # print("error_min=", np.min(error))
+        # print("error_median=", np.median(error))
+        # print("error_var=", np.var(error))
+
+        mean_absolute_error = metrics.mean_absolute_error(y_true, y_pred)
+        print("accuracy=", mean_absolute_error)
+
+        res_dict = {
+            'img_path': img_paths,
+            'label': y_true,
+            'predict': y_pred,
+
+        }
+        df = pd.DataFrame(res_dict)
+        df.to_csv(args.result_csv, index=False)
+        print(f"write to {args.result_csv} succeed ")
+
+
+def test_only_for_pig_dataset(use_cuda):  # kuhn edited
+    """
+    filter out the images with incomplete pig face.
+    """
     # ---------kkuhn-block------------------------------ pig face folder
     total_number = 1000
     tbar = tqdm(total=total_number)
-    pig_face_folder = Path(r"D:\ANewspace\code\pig_face_weight_correlation\datasets\pig_face_only")
+    pig_face_folder = Path(args.output_path)
     delete_folders(pig_face_folder)
     create_folders(pig_face_folder)
     # ---------kkuhn-block------------------------------
     # data
     transformations = get_transforms(input_size=args.image_size, test_size=args.image_size)
-    test_set = data_gen.TestDataset_folder_as_input(root=args.test_txt_path, transform=transformations['test'])
-    # test_set = data_gen.TestDataset(root=args.test_txt_path, transform=transformations['test'])
+    # test_set = data_gen.TestDataset_folder_as_input(root=args.test_txt_path, transform=transformations['test'])
+    test_set = data_gen.TestDataset(root=args.test_txt_path, transform=transformations['test'])
     test_loader = data.DataLoader(test_set, batch_size=args.batch_size, shuffle=True)
     # load model
     model = make_model(args)
@@ -323,16 +418,31 @@ def test_only_for_pig_dataset(use_cuda):  # kuhn edited
             # probability = [1 if prob >= 0.5 else 0 for prob in probability]
             # 返回最大值的索引
             probability = torch.max(outputs, dim=1)[1].data.cpu().numpy().squeeze()
+            if probability.shape == ():
+                probability = [int(probability)]
+
             y_pred.extend(probability)
             # ---------kkuhn-block------------------------------ save the images if complete pig head is detected.
-            prob_list = probability.tolist()
+            prob_list = probability if isinstance(probability, list) else probability.tolist()
+            # prob_list = probability.tolist() if isinstance(probability)
             for i in range(len(prob_list)):
                 if prob_list[i] == 1:
-                    shutil.copy(os.path.join(args.test_txt_path, paths[i]), pig_face_folder)
+                    targetPath = Path(args.test_txt_path)
+                    if args.test_txt_path.endswith('.txt'):
+                        targetPath = Path(args.test_txt_path).parent
+                    shutil.copy(os.path.join(targetPath, paths[i]), pig_face_folder)
                     tbar.update(1)
                     if tbar.n == total_number:
                         exit()
             # ---------kkuhn-block------------------------------
+
+        # ---------kkuhn-block------------------------------ metrics
+        accuracy = metrics.accuracy_score(y_true, y_pred)
+        print("accuracy=", accuracy)
+        confusion_matrix = metrics.confusion_matrix(y_true, y_pred)
+        print("confusion_matrix=", confusion_matrix)
+        print(metrics.classification_report(y_true, y_pred))
+        # ---------kkuhn-block------------------------------
 
         res_dict = {
             'img_path': img_paths,
@@ -411,6 +521,8 @@ if __name__ == "__main__":
         main()
     else:
         # test(use_cuda)
-        # test_only_for_pig_dataset(use_cuda)
+        test_only_for_pig_dataset(use_cuda)
+        # test_for_regression(use_cuda)
 
-        generate_pig_face_only_data_for_regresssion()
+        # generate_pig_face_only_data_for_regresssion()
+        pass
