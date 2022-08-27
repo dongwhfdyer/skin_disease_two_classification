@@ -50,7 +50,7 @@ def make_model(args):
     print("=> creating model '{}'".format(args.arch))
     # 加载预训练模型 
     model = models.resnet50()
-    model.load_state_dict(torch.load(r"checkpoints/resnet50-19c8e357.pth"))
+    model.load_state_dict(args.model_path)
     # model = models.resnet50(pretrained=True)
     # for param in model.parameters():
     #     param.requires_grad = False

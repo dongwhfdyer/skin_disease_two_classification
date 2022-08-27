@@ -6,6 +6,7 @@
 import logging
 import shutil
 import time
+import re
 
 import yaml
 from tensorboardX import SummaryWriter
@@ -24,18 +25,13 @@ import torchvision.transforms as transforms
 from transform import get_transforms
 import os
 from build_net import make_model, make_regression_model
-from utils import get_optimizer, AverageMeter, save_checkpoint, accuracy
+from utils import get_optimizer, AverageMeter, save_checkpoint, accuracy, create_model_logger, logger
 import torchnet.meter as meter
 import pandas as pd
 from sklearn import metrics
 
-# Use CUDA
 torch.cuda.set_device(0)
 use_cuda = torch.cuda.is_available()
-# use_cuda = False
-
-logger = logging.getLogger("global")
-logger.setLevel(logging.DEBUG)
 
 best_acc = 0
 
@@ -46,14 +42,17 @@ def main():
     time_now = time.strftime('%m_%d_%H_%M', time.localtime(time.time()))
 
     checkpoints_path = Path(args.checkpoint) / (args.save_prefix + "_" + str(time_now))
-    tensorboard_log_path = Path("tensorboard_log")
-    writer = SummaryWriter(str(tensorboard_log_path / time_now))
+    tensorboard_log_path = Path("tensorboard_log") / time_now
+    if args.if_resume:
+        logger.warning("Resume from checkpoint: %s", Path(args.model_path))
+        checkpoints_path = Path(args.model_path).parent
+        if (Path("tensorboard_log") / checkpoints_path.name).exists():
+            tensorboard_log_path = Path("tensorboard_log") / checkpoints_path.name
 
     create_folders(checkpoints_path)
+    model_logger = create_model_logger(logger_name="model_logger", log_file=checkpoints_path / "training.log")
+    writer = SummaryWriter(str(tensorboard_log_path))
 
-    with open(checkpoints_path / 'opt.yaml', 'w') as f:
-        # save arguments to yaml file
-        yaml.dump(vars(args), f, default_flow_style=False, sort_keys=False)
     logger.info(f'Arguments: {args}')
     logger.info(f'Checkpoints will be saved to {checkpoints_path}')
 
@@ -68,12 +67,18 @@ def main():
     else:
         model = make_model(args)
 
-    # save model architecture to json file
-    with open(checkpoints_path / 'model.json', 'w') as f:
+    # ---------kkuhn-block------------------------------ saving training options and model architecture
+    opt_yaml_save_path = "opt.yaml"
+    model_info_save_path = "model.json"
+    if args.if_resume:
+        opt_yaml_save_path = "resume_" + opt_yaml_save_path
+        model_info_save_path = "resume_" + model_info_save_path
+    with open(checkpoints_path / opt_yaml_save_path, 'w') as f:
+        yaml.dump(vars(args), f, default_flow_style=False, sort_keys=False)
+
+    with open(checkpoints_path / model_info_save_path, 'w') as f:
         f.write(model.__repr__())
-
-
-
+    # ---------kkuhn-block------------------------------
 
     if use_cuda:
         model.cuda()
@@ -91,35 +96,47 @@ def main():
 
     # load checkpoint
     start_epoch = args.start_epoch
-    # if args.resume:
-    #     print("===> Resuming from checkpoint")
-    #     assert os.path.isfile(args.resume),'Error: no checkpoint directory found'
-    #     args.checkpoint = os.path.dirname(args.resume)  # 去掉文件名 返回目录
-    #     checkpoint = torch.load(args.resume)
-    #     best_acc = checkpoint['best_acc']
-    #     start_epoch = checkpoint['epoch']
-    #     model.module.load_state_dict(checkpoint['state_dict'])
-    #     optimizer.load_state_dict(checkpoint['optimizer'])
+    if args.if_resume:
+        # re format 1_5519_5322.pth
+        epoch_acc_pth_pattern = re.compile(r'model_(\d){1,4}_(\d){4}_(\d){4}\.pth$')
+        re_pth_path = epoch_acc_pth_pattern.match(args.model_path)
+        if re_pth_path:
+            pth_path = re_pth_path.group()
+            start_epoch, _, best_acc = pth_path[:-4].split('_')[1:4]  # e.g. args.model_path = model_1_5519_5322.pth
+            start_epoch = int(start_epoch) + 1
+            best_acc = float(best_acc) / 100
+            logger.info(f'Resume from epoch {start_epoch} with best acc {best_acc}')
+        else:
+            logger.warning(f'Cannot resume from {args.model_path}')
 
-    # train
+        # model.module.load_state_dict(checkpoint['state_dict'])
+        # optimizer.load_state_dict(checkpoint['optimizer'])
+
     for epoch in range(start_epoch, args.epochs):
-        print('\nEpoch: [%d | %d] LR: %f' % (epoch + 1, args.epochs, optimizer.param_groups[0]['lr']))
-
-        train_loss, train_acc = train(train_loader, model, criterion, optimizer, epoch, use_cuda)
+        logger.info('\nEpoch: [%d | %d] LR: %f' % (epoch + 1, args.epochs, optimizer.param_groups[0]['lr']))
         if args.if_regression:
-            # print('Train Loss: %.8f' % train_loss)
-            test_loss, val_acc = val_for_regression(val_loader, model, criterion, epoch, use_cuda)
+            train_loss, train_MAE, train_acc = train(train_loader, model, criterion, optimizer, epoch, use_cuda)
+        else:
+            train_loss, train_acc = train(train_loader, model, criterion, optimizer, epoch, use_cuda)
+
+        if args.if_regression:
+            test_loss, val_MAE, val_acc = val_for_regression(val_loader, model, criterion, epoch, use_cuda)
         else:
             test_loss, val_acc = val(val_loader, model, criterion, epoch, use_cuda)
 
         scheduler.step(test_loss)
-
-        print(f'train_loss:{train_loss}\t val_loss:{test_loss}\t train_acc:{train_acc} \t val_acc:{val_acc}')
+        if args.if_regression:
+            model_logger.info(f'train_loss:{train_loss:.8f}\t val_loss:{test_loss:.8f}\t train_MAE:{train_MAE:.3f}\t train_acc:{train_acc:.3f}\t val_MAE:{val_MAE:.3f}\t val_acc:{val_acc:.3f}')
+        else:
+            model_logger.info(f'train_loss:{train_loss:.8f}\t val_loss:{test_loss:.8f}\t train_acc:{train_acc:.3f} \t val_acc:{val_acc:.3f}')
         writer.add_scalar('train_loss', train_loss, epoch)
         writer.add_scalar('val_loss', test_loss, epoch)
+        writer.add_scalar("val_acc", val_acc, epoch)
+        if args.if_regression:
+            writer.add_scalar("val_MAE", val_MAE, epoch)
 
         mem = torch.cuda.memory_reserved() / 1E9 if torch.cuda.is_available() else 0  # (GB)
-        print(f'Memory used: {mem} GB')
+        logger.info(f'Memory used: {mem} GB')
         is_best = val_acc >= best_acc
         best_acc = max(val_acc, best_acc)
 
@@ -136,14 +153,16 @@ def main():
     print("best acc = ", best_acc)
 
 
-loss_bias = 17.0  # loss is too big, so we add loss_bias to avoid it.
+loss_bias = 33.0  # loss is too big, so we add loss_bias to avoid it.
 
 
 def train(train_loader, model, criterion, optimizer, epoch, use_cuda):
     model.train()
     losses = AverageMeter()
-    train_acc = AverageMeter()
-
+    train_meter = AverageMeter()
+    if args.if_regression:
+        accept_item = 0
+        all_items = len(train_loader.dataset)
     for (inputs, targets) in tqdm(train_loader):
         if use_cuda:
             inputs, targets = inputs.cuda(), targets.cuda()  # kuhn edited
@@ -159,23 +178,35 @@ def train(train_loader, model, criterion, optimizer, epoch, use_cuda):
             loss = criterion(outputs, targets / loss_bias)
         else:
             loss = criterion(outputs, targets)
+
         loss.backward()
         optimizer.step()
-        acc = accuracy(outputs.data, targets.data, if_regression=args.if_regression)
+        if args.if_regression:
+            outputs_ = outputs * loss_bias
+            error = torch.abs(outputs_ - targets) - 10
+            accept_item += torch.sum(error <= 0).item()
+            mean_absolute_error = metrics.mean_absolute_error(outputs_.detach().cpu().numpy(), targets.detach().cpu().numpy())
+            train_meter.update(mean_absolute_error.item(), inputs.size(0))
+        else:
+            acc = accuracy(outputs.data, targets.data)
+            train_meter.update(acc.item(), inputs.size(0))
 
         losses.update(loss.item(), inputs.size(0))
-        train_acc.update(acc.item(), inputs.size(0))
-
-    return losses.avg, train_acc.avg
+    if args.if_regression:
+        train_acc = accept_item / all_items
+        return losses.avg, train_meter.avg, train_acc
+    else:
+        return losses.avg, train_meter.avg
 
 
 def val_for_regression(val_loader, model, criterion, epoch, use_cuda):
     global best_acc
     losses = AverageMeter()
-    val_acc = AverageMeter()
+    val_MAE = AverageMeter()
 
     model.eval()
-    # 混淆矩阵
+    accept_item = 0
+    all_items = len(val_loader.dataset)
     with torch.no_grad():
         for _, (inputs, targets) in enumerate(val_loader):
             if use_cuda:
@@ -183,14 +214,21 @@ def val_for_regression(val_loader, model, criterion, epoch, use_cuda):
             targets = torch.reshape(targets, (-1, 1))
             inputs, targets = torch.autograd.Variable(inputs), torch.autograd.Variable(targets)
 
-            # compute output
             outputs = model(inputs)
             loss = criterion(outputs, targets / loss_bias)
-            acc1 = accuracy(outputs.data, targets.data)
+            outputs_ = outputs * loss_bias
+            error = torch.abs(outputs_ - targets) - 10
+            # count the element that is less than 1
+            accept_item += torch.sum(error <= 0).item()
+
+            mean_absolute_error = metrics.mean_absolute_error(outputs_.cpu().numpy(), targets.cpu().numpy())
+            # numpy.array to float
+            # logger.info("mean_absolute_error: ", mean_absolute_error)
 
             losses.update(loss.item(), inputs.size(0))
-            val_acc.update(acc1.item(), inputs.size(0))
-    return losses.avg, val_acc.avg
+            val_MAE.update(mean_absolute_error.item(), inputs.size(0))
+    val_acc = accept_item / all_items
+    return losses.avg, val_MAE.avg, val_acc
 
 
 def val(val_loader, model, criterion, epoch, use_cuda):
@@ -517,6 +555,7 @@ if __name__ == "__main__":
     # 划分数据集
     # data_gen.Split_datatset(args.dataset_txt_path, args.train_txt_path, args.test_txt_path)
     # data_gen.Split_datatset(args.train_txt_path, args.train_txt_path, args.val_txt_path)
+    logger.info("-------------------------------------------------- all is well!")
     if args.mode == 'train':
         main()
     else:

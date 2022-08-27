@@ -31,6 +31,8 @@ import argparse
 # epochs = 300
 # only_inference = False
 # save_prefix = "binary_cls"
+# if_resume = False
+# start_epoch = 0
 # # ---------kkuhn-block------------------------------
 
 # # ---------kkuhn-block------------------------------ binary classification test settings
@@ -66,8 +68,8 @@ train_txt_path = r"datasets/exact_face_only_cleaned_train_val/train.txt"
 val_txt_path = r"datasets/exact_face_only_cleaned_train_val/val.txt"
 # test_data_path = "datasets/pig_if_complete/train/complete"
 # test_data_path = "datasets/pig_if_complete/train/incomplete"
-test_data_path = "D:/ANewspace/code/pig_face_weight_correlation/datasets/selected_pig_all"
-output_data_path = r"rubb/pig_face_only" # useless here
+test_data_path = "D:/ANewspace/code/pig_face_weight_correlation/datasets/selected_pig_all" # only used when testing
+output_data_path = r"rubb/pig_face_only"  # only used when testing
 batch_size = 16
 num_workers = 10
 # batch_size = 4
@@ -76,13 +78,16 @@ num_workers = 10
 lr = 0.0007
 # mode = "test"
 mode = "train"
-pt_path = r"checkpoints/resnet50-19c8e357.pth"
+# pt_path = r"checkpoints/resnet50-19c8e357.pth"
+pt_path = r"checkpoints/weight_regression_08_25_20_21/model_cur.pth"
 img_size = 512
 if_regression = True
 optimizer = "adam"
 epochs = 300
 only_inference = False
 save_prefix = "weight_regression"
+if_resume = True
+start_epoch = 0
 # ---------kkuhn-block------------------------------
 
 # # ---------kkuhn-block------------------------------ weight regression test settings
@@ -142,9 +147,9 @@ parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
 
 # training
 parser.add_argument("--checkpoint", type=str, default='./checkpoints')
-parser.add_argument("--resume", default='', type=str, metavar='PATH', help='path to save the latest checkpoint')
+parser.add_argument("--if_resume", default=if_resume, type=str, metavar='PATH', help='if resume from checkpoint')
 parser.add_argument("--batch_size", type=int, default=batch_size)
-parser.add_argument("--start_epoch", default=0, type=int, metavar='N')
+parser.add_argument("--start_epoch", default=start_epoch, type=int, metavar='N')
 parser.add_argument('--epochs', default=epochs, type=int, metavar='N')
 
 parser.add_argument('--image-size', type=int, default=img_size)

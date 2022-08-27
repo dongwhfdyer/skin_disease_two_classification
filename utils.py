@@ -1,9 +1,10 @@
+import shutil
+from pathlib import Path
+
 import torch
 # import adabound
 import os
 import logging
-
-logger = logging.getLogger('global')
 
 
 class AverageMeter(object):
@@ -80,7 +81,7 @@ def save_checkpoint(state, is_best, single=True, checkpoint='checkpoint', filena
         logger.info("update best model")
 
 
-def accuracy(output, target, topk=(1,), if_regression=False):
+def accuracy(output, target, topk=(1,)):
     """Computes the precision@k for the specified values of k"""
     batch_size = target.size(0)
     # top1 accuracy
@@ -95,8 +96,74 @@ def accuracy(output, target, topk=(1,), if_regression=False):
         correct_k = correct[:k].view(-1).float().sum(0)
         res = correct_k.mul_(100.0 / batch_size)
 
-
-
     return res
 
 
+def create_model_logger(logger_name, log_file, log_level=logging.DEBUG):
+    logger = logging.getLogger(logger_name)
+    logger.setLevel(logging.DEBUG)
+    # 建立一个filehandler来把日志记录在文件里，级别为debug以上
+    # if log file not exists, create it
+    if not os.path.exists(log_file):
+        open(log_file, 'w').close()
+    fh = logging.FileHandler(log_file)
+    fh.setLevel(logging.DEBUG)
+    # 建立一个streamhandler来把日志打在CMD窗口上，级别为error以上
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    # 设置日志格式
+    formatter_1 = logging.Formatter("[%(levelname)s] - %(filename)s - %(lineno)d: %(message)s")
+    # formatter_2 = logging.Formatter("[%(levelname)s] - %(filename)s - %(lineno)d: %(message)s")
+    formatter_3 = logging.Formatter("%(message)s")
+    ch.setFormatter(formatter_3)
+    fh.setFormatter(formatter_1)
+
+    logger.addHandler(ch)
+    logger.addHandler(fh)
+
+    return logger
+
+
+def advancedLogger():
+    logger_name = "global"
+    log_file = "rubb/global.log"
+    logger = logging.getLogger(logger_name)
+    logger.setLevel(logging.DEBUG)
+    # 建立一个filehandler来把日志记录在文件里，级别为debug以上
+    fh = logging.FileHandler(log_file)
+    fh.setLevel(logging.DEBUG)
+    # 建立一个streamhandler来把日志打在CMD窗口上，级别为error以上
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    # 设置日志格式
+    FORMATTER_1 = logging.Formatter("[%(levelname)s] - %(filename)s - %(lineno)d: %(message)s")
+    FORMATTER_2 = logging.Formatter("[%(levelname)s] - %(filename)s - %(lineno)d: %(message)s")
+    FORMATTER_3 = logging.Formatter("%(message)s")
+    FORMATTER_4 = logging.Formatter("[%(levelname)s] - %(asctime)s - %(filename)s - %(lineno)d: %(message)s")
+    ch.setFormatter(FORMATTER_3)
+    fh.setFormatter(FORMATTER_4)
+    # 将相应的handler添加在logger对象中
+    logger.addHandler(ch)
+    logger.addHandler(fh)
+
+    return logger
+
+
+logger = advancedLogger()
+
+
+def clear_empty_checkpoints_folder():
+    checkpoint_folder = Path(r"checkpoints")
+    for folder in checkpoint_folder.iterdir():
+        if folder.is_dir():
+            # if no pth file, then delete this folder
+            if not any(folder.glob('*.pth')):
+                # print(folder)
+                shutil.rmtree(folder)
+                logger.info("delete empty folder: {}".format(folder))
+
+
+if __name__ == '__main__':
+    logger.info("hello world")
+    # clear_empty_checkpoints_folder()
+    pass
