@@ -63,7 +63,7 @@ def main():
     val_set = data_gen.ValDataset(root=args.val_txt_path, transform=transformations['val_test'])
     val_loader = data.DataLoader(val_set, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
     if args.if_regression:
-        model = make_regression_model(args)
+        model = make_regression_model(args.model_path)
     else:
         model = make_model(args)
 
@@ -71,11 +71,10 @@ def main():
     opt_yaml_save_path = "opt.yaml"
     model_info_save_path = "model.json"
     if args.if_resume:
-        opt_yaml_save_path = "resume_" + opt_yaml_save_path
-        model_info_save_path = "resume_" + model_info_save_path
+        opt_yaml_save_path = "resume_" + str(time_now) + "_" + opt_yaml_save_path
+        model_info_save_path = "resume_" + str(time_now) + "_" + model_info_save_path
     with open(checkpoints_path / opt_yaml_save_path, 'w') as f:
         yaml.dump(vars(args), f, default_flow_style=False, sort_keys=False)
-
     with open(checkpoints_path / model_info_save_path, 'w') as f:
         f.write(model.__repr__())
     # ---------kkuhn-block------------------------------
@@ -92,14 +91,15 @@ def main():
         criterion = criterion.cuda()
 
     optimizer = get_optimizer(model, args)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.2, patience=5, verbose=False)
+    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.2, patience=5, verbose=False)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10, eta_min=0, last_epoch=-1)  # todo: if use this scheduler?
 
     # load checkpoint
     start_epoch = args.start_epoch
     if args.if_resume:
         # re format 1_5519_5322.pth
-        epoch_acc_pth_pattern = re.compile(r'model_(\d){1,4}_(\d){4}_(\d){4}\.pth$')
-        re_pth_path = epoch_acc_pth_pattern.match(args.model_path)
+        epoch_acc_pth_pattern = re.compile(r'model_(\d){1,4}_(\d){2}_(\d){2}\.pth$')
+        re_pth_path = epoch_acc_pth_pattern.search(args.model_path)
         if re_pth_path:
             pth_path = re_pth_path.group()
             start_epoch, _, best_acc = pth_path[:-4].split('_')[1:4]  # e.g. args.model_path = model_1_5519_5322.pth
@@ -113,7 +113,8 @@ def main():
         # optimizer.load_state_dict(checkpoint['optimizer'])
 
     for epoch in range(start_epoch, args.epochs):
-        logger.info('\nEpoch: [%d | %d] LR: %f' % (epoch + 1, args.epochs, optimizer.param_groups[0]['lr']))
+        logger.info('\nEpoch: [%d | %d] LR: %.8f' % (epoch + 1, args.epochs, optimizer.param_groups[0]['lr']))
+        # logger.info('\nEpoch: [%d | %d] LR: %f' % (epoch + 1, args.epochs, optimizer.param_groups[0]['lr']))
         if args.if_regression:
             train_loss, train_MAE, train_acc = train(train_loader, model, criterion, optimizer, epoch, use_cuda)
         else:
@@ -153,7 +154,7 @@ def main():
     print("best acc = ", best_acc)
 
 
-loss_bias = 33.0  # loss is too big, so we add loss_bias to avoid it.
+loss_bias = 33.0  # todo:  loss is too big, so we add loss_bias to avoid it.
 
 
 def train(train_loader, model, criterion, optimizer, epoch, use_cuda):
@@ -359,7 +360,7 @@ def test_for_regression(use_cuda):
         test_set = data_gen.TestDataset(root=args.test_txt_path, transform=transformations['test'])
     test_loader = data.DataLoader(test_set, batch_size=args.batch_size, shuffle=True)
 
-    model = make_regression_model(args)
+    model = make_regression_model(args.model_path)
     if args.model_path:
         model.load_state_dict(torch.load(args.model_path))
     if use_cuda:
@@ -377,7 +378,7 @@ def test_for_regression(use_cuda):
                 inputs, targets = inputs.cuda(), targets.cuda()
             inputs, targets = torch.autograd.Variable(inputs), torch.autograd.Variable(targets)
 
-            outputs = model(inputs) * 150.0
+            outputs = model(inputs) * loss_bias
             # convert to int
             outputs = [int(elm.data.cpu().numpy().squeeze()) for elm in outputs]
 
@@ -560,8 +561,8 @@ if __name__ == "__main__":
         main()
     else:
         # test(use_cuda)
-        test_only_for_pig_dataset(use_cuda)
-        # test_for_regression(use_cuda)
+        # test_only_for_pig_dataset(use_cuda)
+        test_for_regression(use_cuda)
 
         # generate_pig_face_only_data_for_regresssion()
         pass

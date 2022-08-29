@@ -36,6 +36,20 @@ def generate_data_info_txt_for_pig_dataset():
     #
 
 
+def get_classes_of_pig_data():
+    data_path = r"datasets/exact_face_only_cleaned_train_val/train.txt"
+    weight_class = []
+    with open(data_path, "r") as f:
+        lines = f.readlines()
+        for line in lines:
+            weight = int(line.split(",")[1])
+            if weight not in weight_class:
+                weight_class.append(weight)
+    print(weight_class)
+    pass
+
 
 if __name__ == '__main__':
-    generate_data_info_txt_for_pig_dataset()
+    # generate_data_info_txt_for_pig_dataset()
+    get_classes_of_pig_data()
+    pass

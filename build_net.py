@@ -35,14 +35,21 @@ class log_mse_loss(nn.Module):
         return torch.log(torch.pow(input - target, 2))
 
 
-def make_regression_model(args):
-    model = Res.resnet50_output_1()
-    ckpt = torch.load(args.model_path)
-    model_dict = model.state_dict()
-    pretrained_dict = {k: v for k, v in ckpt.items() if k in model_dict and (v.shape == model_dict[k].shape)}
-    model_dict.update(pretrained_dict)
+# #---------kkuhn-block------------------------------ back up
+# def make_regression_model(args):
+#     model = Res.resnet50_output_1()
+#     ckpt = torch.load(args.model_path)
+#     model_dict = model.state_dict()
+#     pretrained_dict = {k: v for k, v in ckpt.items() if k in model_dict and (v.shape == model_dict[k].shape)}
+#     model_dict.update(pretrained_dict)
+#     model.load_state_dict(ckpt)  # todo
+#     # model.load_state_dict(model_dict, strict=False)
+#     return model
+# #---------kkuhn-block------------------------------
 
-    model.load_state_dict(model_dict, strict=False)
+def make_regression_model(pt_path):
+    model = Res.resnet50_output_1()
+    print(model.load_state_dict(torch.load(pt_path), strict=False))
     return model
 
 
@@ -50,7 +57,6 @@ def make_model(args):
     print("=> creating model '{}'".format(args.arch))
     # 加载预训练模型 
     model = models.resnet50()
-    model.load_state_dict(args.model_path)
     # model = models.resnet50(pretrained=True)
     # for param in model.parameters():
     #     param.requires_grad = False
@@ -64,6 +70,7 @@ def make_model(args):
         nn.Linear(256, args.num_classes),
         nn.LeakyReLU(),
     )
+    model.load_state_dict(args.model_path)
     return model
 
 
