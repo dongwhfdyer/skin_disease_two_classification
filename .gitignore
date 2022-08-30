@@ -9,3 +9,4 @@ checkpoints/resnet50-19c8e357.pth
 /models/
 /tensorboard_log/
 .idea/deployment.xml
+/backup_models/

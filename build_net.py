@@ -53,6 +53,17 @@ def make_regression_model(pt_path):
     return model
 
 
+def make_model_for_24_classes(args):
+    model = Res.resnet50_output_24()
+    ckpt = torch.load(args.model_path)
+    model_dict = model.state_dict()
+    pretrained_dict = {k: v for k, v in ckpt.items() if k in model_dict and (v.shape == model_dict[k].shape)}
+    model_dict.update(pretrained_dict)
+    print(model.load_state_dict(model_dict, strict=False))
+    # print(model.load_state_dict(torch.load(args.model_path), strict=False))
+    return model
+
+
 def make_model(args):
     print("=> creating model '{}'".format(args.arch))
     # 加载预训练模型 
@@ -68,9 +79,12 @@ def make_model(args):
         nn.ReLU(),
         nn.Dropout(0.4),
         nn.Linear(256, args.num_classes),
+        # nn.ReLU(), # todo: two classification needs nn.LeakyReLU()
         nn.LeakyReLU(),
     )
-    model.load_state_dict(args.model_path)
+
+    print(model.load_state_dict(torch.load(args.model_path), strict=False))
+
     return model
 
 

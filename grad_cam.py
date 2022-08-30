@@ -74,15 +74,26 @@ class GradCAM:
     def get_cam_weights(grads):
         return np.mean(grads, axis=(2, 3), keepdims=True)
 
+    # ---------kkuhn-block------------------------------ tkinker
     @staticmethod
-    def get_loss(output, target_value):
+    def get_loss(output, target_category):
         loss = 0
-        # metrics.mean_absolute_error(output.detach().cpu().numpy(), target_value)
-        import torch
-        loss = abs(output - torch.Tensor([248]))
-        # loss += abs(output - torch.Tensor(target_value))
-        # loss = torch.Tensor(33)
+        for i in range(len(target_category)):
+            loss = loss + output[i, target_category[i]]
         return loss
+    # ---------kkuhn-block------------------------------
+
+    # #---------kkuhn-block------------------------------ backup
+    # @staticmethod
+    # def get_loss(output, target_value):
+    #     loss = 0
+    #     # metrics.mean_absolute_error(output.detach().cpu().numpy(), target_value)
+    #     import torch
+    #     loss = abs(output - torch.Tensor([248]))
+    #     # loss += abs(output - torch.Tensor(target_value))
+    #     # loss = torch.Tensor(33)
+    #     return loss
+    # #---------kkuhn-block------------------------------
 
     def get_cam_image(self, activations, grads):
         weights = self.get_cam_weights(grads)

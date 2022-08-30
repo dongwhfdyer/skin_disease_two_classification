@@ -244,6 +244,36 @@ class resnet50_output_1(ResNet):
         return x
 
 
+
+class resnet50_output_24(ResNet):
+    def __init__(self, num_classes=1000, zero_init_residual=False,
+                 groups=1, width_per_group=64, replace_stride_with_dilation=None,
+                 norm_layer=None):
+        super(resnet50_output_24, self).__init__(Bottleneck, [3, 4, 6, 3], num_classes, zero_init_residual,
+                                                groups, width_per_group, replace_stride_with_dilation, norm_layer)
+        self.fc= nn.Linear(512 * 4, 24)
+
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+
+        x = self.avgpool(x)
+        x = x.reshape(x.size(0), -1)
+        x = self.fc(x)
+        # x = torch.exp(x)
+
+
+        return x
+
+
 def _resnet(arch, block, layers, pretrained, progress, **kwargs):
     model = ResNet(block, layers, **kwargs)
     if pretrained:

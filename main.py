@@ -24,7 +24,7 @@ import torch.utils.data as data
 import torchvision.transforms as transforms
 from transform import get_transforms
 import os
-from build_net import make_model, make_regression_model
+from build_net import make_model, make_regression_model, make_model_for_24_classes
 from utils import get_optimizer, AverageMeter, save_checkpoint, accuracy, create_model_logger, logger
 import torchnet.meter as meter
 import pandas as pd
@@ -65,7 +65,7 @@ def main():
     if args.if_regression:
         model = make_regression_model(args.model_path)
     else:
-        model = make_model(args)
+        model = make_model_for_24_classes(args)
 
     # ---------kkuhn-block------------------------------ saving training options and model architecture
     opt_yaml_save_path = "opt.yaml"
@@ -175,6 +175,7 @@ def train(train_loader, model, criterion, optimizer, epoch, use_cuda):
         optimizer.zero_grad()
         outputs = model(inputs)
         # logger.debug(f'outputs:{outputs * 150.0}')
+        # targets = torch.Tensor([1, 2, 3, 4]).long().cuda()
         if args.if_regression:
             loss = criterion(outputs, targets / loss_bias)
         else:

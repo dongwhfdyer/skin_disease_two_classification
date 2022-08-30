@@ -5,14 +5,15 @@
 """
 import argparse
 
-# ---------kkuhn-block------------------------------ weight classification train settings
+
+# ---------kkuhn-block------------------------------ weight classification test settings
 data_path = r"datasets/exact_face_only_cleaned_train_val"
-train_txt_path = r"datasets/exact_face_only_cleaned_train_val/train.txt"
-val_txt_path = r"datasets/exact_face_only_cleaned_train_val/val.txt"
+train_txt_path = r"datasets/exact_face_only_cleaned_train_val/train_for_classification.txt"
+val_txt_path = r"datasets/exact_face_only_cleaned_train_val/val_for_classification.txt"
 # test_data_path = "datasets/pig_if_complete/train/complete"
 # test_data_path = "datasets/pig_if_complete/train/incomplete"
 test_data_path = "D:\ANewspace\code\pig_face_weight_correlation\datasets\selected_pig_all"
-output_data_path = r"rubb/pig_face_only" # useless here
+output_data_path = r"rubb/pig_face_only"  # useless here
 
 batch_size = 16
 num_workers = 10
@@ -22,7 +23,7 @@ lr = 0.0007
 # mode = "test"
 mode = "train"
 # pt_path = r"checkpoints/model_16_9283_9187.pth"
-pt_path = r"checkpoints/resnet50-19c8e357.pth"
+pt_path = r"checkpoints/weight_classification_v1/model_124_9693_9717.pth"
 # pt_path = r"models/model_cur.pth"
 
 img_size = 512
@@ -35,6 +36,37 @@ if_resume = False
 start_epoch = 0
 num_classes = 24
 # ---------kkuhn-block-----------------------------
+
+# # ---------kkuhn-block------------------------------ weight classification train settings
+# data_path = r"datasets/exact_face_only_cleaned_train_val"
+# train_txt_path = r"datasets/exact_face_only_cleaned_train_val/train_for_classification.txt"
+# val_txt_path = r"datasets/exact_face_only_cleaned_train_val/val_for_classification.txt"
+# # test_data_path = "datasets/pig_if_complete/train/complete"
+# # test_data_path = "datasets/pig_if_complete/train/incomplete"
+# test_data_path = "D:\ANewspace\code\pig_face_weight_correlation\datasets\selected_pig_all"
+# output_data_path = r"rubb/pig_face_only"  # useless here
+#
+# batch_size = 16
+# num_workers = 10
+# # batch_size = 4
+# # num_workers = 4
+# lr = 0.0007
+# # mode = "test"
+# mode = "train"
+# # pt_path = r"checkpoints/model_16_9283_9187.pth"
+# pt_path = r"checkpoints/resnet50-19c8e357.pth"
+# # pt_path = r"models/model_cur.pth"
+#
+# img_size = 512
+# if_regression = False
+# optimizer = "adam"
+# epochs = 1000
+# only_inference = False
+# save_prefix = "weight_classification"
+# if_resume = False
+# start_epoch = 0
+# num_classes = 24
+# # ---------kkuhn-block-----------------------------
 
 # # ---------kkuhn-block------------------------------ binary classification train settings
 # data_path = r"datasets/pig_if_complete_0825"
@@ -65,7 +97,6 @@ num_classes = 24
 # if_resume = False
 # start_epoch = 0
 # num_classes = 2
-
 # # ---------kkuhn-block------------------------------
 
 # # ---------kkuhn-block------------------------------ binary classification test settings
@@ -126,7 +157,6 @@ num_classes = 24
 # if_resume = True
 # start_epoch = 0
 # num_classes = 2
-#
 # # ---------kkuhn-block------------------------------
 
 # # ---------kkuhn-block------------------------------ weight regression test settings

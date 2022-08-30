@@ -158,12 +158,11 @@ def clear_empty_checkpoints_folder():
         if folder.is_dir():
             # if no pth file, then delete this folder
             if not any(folder.glob('*.pth')):
-                # print(folder)
                 shutil.rmtree(folder)
                 logger.info("delete empty folder: {}".format(folder))
 
 
 if __name__ == '__main__':
-    logger.info("hello world")
-    # clear_empty_checkpoints_folder()
+    # logger.info("hello world")
+    clear_empty_checkpoints_folder()
     pass
