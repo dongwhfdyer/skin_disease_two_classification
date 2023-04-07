@@ -49,6 +49,7 @@ class log_mse_loss(nn.Module):
 
 def make_regression_model(pt_path):
     model = Res.resnet50_output_1()
+    # pretrained model weights
     print(model.load_state_dict(torch.load(pt_path), strict=False))
     return model
 
@@ -78,7 +79,7 @@ def make_model(args):
         nn.Linear(fc_inputs, 256),
         nn.ReLU(),
         nn.Dropout(0.4),
-        nn.Linear(256, args.num_classes),
+        nn.Linear(256, args.num_classes),  # num_classes = 2
         # nn.ReLU(), # todo: two classification needs nn.LeakyReLU()
         nn.LeakyReLU(),
     )

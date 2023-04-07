@@ -5,36 +5,34 @@
 """
 import argparse
 
-
 # ---------kkuhn-block------------------------------ weight classification test settings
-data_path = r"datasets/exact_face_only_cleaned_train_val"
-train_txt_path = r"datasets/exact_face_only_cleaned_train_val/train_for_classification.txt"
-val_txt_path = r"datasets/exact_face_only_cleaned_train_val/val_for_classification.txt"
+data_path = r"datasets/exact_face_only_cleaned_train_val"  # useless here
+train_txt_path = r"datasets/exact_face_only_cleaned_train_val/train_for_classification.txt"  # useless here
+val_txt_path = r"datasets/exact_face_only_cleaned_train_val/val_for_classification.txt"  # useless here
 # test_data_path = "datasets/pig_if_complete/train/complete"
 # test_data_path = "datasets/pig_if_complete/train/incomplete"
-test_data_path = "D:\ANewspace\code\pig_face_weight_correlation\datasets\selected_pig_all"
+test_data_path = val_txt_path # useful
 output_data_path = r"rubb/pig_face_only"  # useless here
 
-batch_size = 16
-num_workers = 10
-# batch_size = 4
-# num_workers = 4
-lr = 0.0007
-# mode = "test"
-mode = "train"
+# batch_size = 16
+# num_workers = 10
+batch_size = 4
+num_workers = 4
+lr = 0.0007  # useless here
+mode = "test"
 # pt_path = r"checkpoints/model_16_9283_9187.pth"
-pt_path = r"checkpoints/weight_classification_v1/model_124_9693_9717.pth"
+pt_path = r"backup_models/weight_classification_v1/model_124_9693_9717.pth"
 # pt_path = r"models/model_cur.pth"
 
 img_size = 512
 if_regression = False
-optimizer = "adam"
-epochs = 1000
-only_inference = False
-save_prefix = "weight_classification"
-if_resume = False
-start_epoch = 0
-num_classes = 24
+optimizer = "adam"  # useless here
+epochs = 1000  # useless here
+only_inference = False  # useless here
+save_prefix = "weight_classification"  # useless here
+if_resume = False  # useless here
+start_epoch = 0  # useless here
+num_classes = 24  # useless here
 # ---------kkuhn-block-----------------------------
 
 # # ---------kkuhn-block------------------------------ weight classification train settings
@@ -129,26 +127,25 @@ num_classes = 24
 # # ---------kkuhn-block------------------------------
 
 # # ---------kkuhn-block------------------------------ weight regression train settings
-# data_path = r"datasets/exact_face_only_cleaned_train_val"
+# data_path = r"datasets/exact_face_only_cleaned_train_val" # train datset root path
 # train_txt_path = r"datasets/exact_face_only_cleaned_train_val/train.txt"
 # val_txt_path = r"datasets/exact_face_only_cleaned_train_val/val.txt"
 # # test_data_path = "datasets/pig_if_complete/train/complete"
 # # test_data_path = "datasets/pig_if_complete/train/incomplete"
 # test_data_path = "D:/ANewspace/code/pig_face_weight_correlation/datasets/selected_pig_all"  # only used when testing
 # output_data_path = r"rubb/pig_face_only"  # only used when testing
-# batch_size = 16
-# num_workers = 10
-# # batch_size = 4
-# # num_workers = 4
+# # batch_size = 16
+# # num_workers = 10
+# batch_size = 4
+# num_workers = 4
 #
-# lr = 0.00069993
-# # lr = 0.0007
+# lr = 0.0007
 # # mode = "test"
 # mode = "train"
 # # pt_path = r"checkpoints/resnet50-19c8e357.pth"
 # pt_path = r"checkpoints/weight_regression_08_25_20_21/model_783_96_93.pth"
 # # pt_path = r"checkpoints/weight_regression_08_25_20_21/model_cur.pth"
-# img_size = 512
+# img_size = 512 # model will resize the image to 512 * 512
 # if_regression = True
 # optimizer = "adam"
 # epochs = 1000
@@ -156,40 +153,40 @@ num_classes = 24
 # save_prefix = "weight_regression"
 # if_resume = True
 # start_epoch = 0
-# num_classes = 2
+# num_classes = 2 # only when it's a classification task
 # # ---------kkuhn-block------------------------------
 
 # # ---------kkuhn-block------------------------------ weight regression test settings
-# data_path = r"datasets/exact_face_only_cleaned_train_val"
-# train_txt_path = r"datasets/exact_face_only_cleaned_train_val/train.txt"
-# val_txt_path = r"datasets/exact_face_only_cleaned_train_val/val.txt"
+# data_path = r"datasets/exact_face_only_cleaned_train_val" # useless here
+# train_txt_path = r"datasets/exact_face_only_cleaned_train_val/train.txt" # useless here
+# val_txt_path = r"datasets/exact_face_only_cleaned_train_val/val.txt" # useless here
 # # test_data_path = "datasets/pig_if_complete/train/complete"
 # # test_data_path = "datasets/pig_if_complete/train/incomplete"
 # # test_data_path = train_txt_path
 # test_data_path = val_txt_path
 # # test_data_path = "D:/ANewspace/code/pig_face_weight_correlation/datasets/selected_pig_all"
-# batch_size = 16
-# num_workers = 10
-# # batch_size = 4
-# # num_workers = 4
+# # batch_size = 16
+# # num_workers = 10
+# batch_size = 4
+# num_workers = 4
 #
-# lr = 0.0007
+# lr = 0.0007 # useless here
 # mode = "test"
-# pt_path = r"checkpoints/weight_regression_08_25_20_21/model_783_96_93.pth"
+# pt_path = r"checkpoints/weight_regresssion_v1/model_783_96_93.pth"
 # # pt_path = r"checkpoints/weight_regresssion_v1/model_783_96_93.pth"
 # img_size = 512
-# if_regression = True
-# optimizer = "adam"
-# epochs = 300
-# only_inference = False
-# save_prefix = "binary_cls"
+# if_regression = True # useless here
+# optimizer = "adam" # useless here
+# epochs = 300 # useless here
+# only_inference = False # useless here
+# save_prefix = "binary_cls" # useless here
 #
-# start_epoch = 0
-# if_resume = False
-# output_data_path = r"rubb"
-# num_classes = 2
-
-# # ---------kkuhn-block------------------------------
+# start_epoch = 0 # useless here
+# if_resume = False # useless here
+# output_data_path = r"rubb" # useless here
+# num_classes = 2 # useless here
+#
+# # ---------kkuhn-block-----------------------------
 
 parser = argparse.ArgumentParser()
 
@@ -205,21 +202,13 @@ parser.add_argument('-val_txt_path', type=str, default=val_txt_path)
 # optimizer
 parser.add_argument('--optimizer', default=optimizer, choices=['sgd', 'rmsprop', 'adam', 'radam'])
 parser.add_argument("--lr", type=float, default=lr)
-parser.add_argument('--lr-fc-times', '--lft', default=5, type=int,
-                    metavar='LR', help='initial model last layer rate')
-parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
-                    help='momentum')
-parser.add_argument('--no_nesterov', dest='nesterov',
-                    action='store_false',
-                    help='do not use Nesterov momentum')
-parser.add_argument('--alpha', default=0.99, type=float, metavar='M',
-                    help='alpha for ')
-parser.add_argument('--beta1', default=0.9, type=float, metavar='M',
-                    help='beta1 for Adam (default: 0.9)')
-parser.add_argument('--beta2', default=0.999, type=float, metavar='M',
-                    help='beta2 for Adam (default: 0.999)')
-parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
-                    metavar='W', help='weight decay (default: 1e-4)')
+parser.add_argument('--lr-fc-times', '--lft', default=5, type=int, metavar='LR', help='initial model last layer rate')
+parser.add_argument('--momentum', default=0.9, type=float, metavar='M', help='momentum')
+parser.add_argument('--no_nesterov', dest='nesterov', action='store_false', help='do not use Nesterov momentum')
+parser.add_argument('--alpha', default=0.99, type=float, metavar='M', help='alpha for ')
+parser.add_argument('--beta1', default=0.9, type=float, metavar='M', help='beta1 for Adam (default: 0.9)')
+parser.add_argument('--beta2', default=0.999, type=float, metavar='M', help='beta2 for Adam (default: 0.999)')
+parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float, metavar='W', help='weight decay (default: 1e-4)')
 
 # training
 parser.add_argument("--checkpoint", type=str, default='./checkpoints')

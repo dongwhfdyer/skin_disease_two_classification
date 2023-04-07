@@ -13,7 +13,7 @@ from build_net import make_regression_model, make_model_for_24_classes
 # from utils import GradCAM, show_cam_on_image
 from grad_cam import GradCAM, show_cam_on_image
 from args import args
-
+import timm
 
 def main():
     model = make_model_for_24_classes(args)
@@ -45,10 +45,8 @@ def main():
         input_tensor = torch.unsqueeze(img_tensor, dim=0)
 
         cam = GradCAM(model=model, target_layers=target_layers, use_cuda=False)
-        target_category = 0  # tabby, tabby cat
-        # target_category = 254  # pug, pug-dog
 
-        grayscale_cam = cam(input_tensor=input_tensor, target_category=target_category)
+        grayscale_cam = cam(input_tensor=input_tensor, target_category=target_category_id)
 
         grayscale_cam = grayscale_cam[0, :]
         visualization = show_cam_on_image(img.astype(dtype=np.float32) / 255.,
@@ -58,8 +56,11 @@ def main():
         plt.savefig(os.path.join(save_folder, img_path.name))
         # plt.show()
 
+    #---------kkuhn-block------------------------------ param settings
     img_folder = Path("datasets/exact_face_only_cleaned_train_val/val")
     save_folder = Path("rubb/grad_show")
+    target_category_id = 0 # the mapping between id and weight is in the dataset path
+    #---------kkuhn-block------------------------------
     delete_folders(save_folder)
     create_folders(save_folder)
     for img_path in img_folder.glob("*"):

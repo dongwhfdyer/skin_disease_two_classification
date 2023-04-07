@@ -216,6 +216,9 @@ class ResNet(nn.Module):
 
 
 class resnet50_output_1(ResNet):
+    """
+    weight regression
+    """
     def __init__(self, num_classes=1000, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,
                  norm_layer=None):
@@ -237,7 +240,7 @@ class resnet50_output_1(ResNet):
 
         x = self.avgpool(x)
         x = x.reshape(x.size(0), -1)
-        x = self.fc(x)
+        x = self.fc(x) # full-connected network
         # x = torch.exp(x)
 
 
@@ -269,7 +272,6 @@ class resnet50_output_24(ResNet):
         x = x.reshape(x.size(0), -1)
         x = self.fc(x)
         # x = torch.exp(x)
-
 
         return x
 

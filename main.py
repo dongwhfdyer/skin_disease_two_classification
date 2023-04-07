@@ -56,16 +56,19 @@ def main():
     logger.info(f'Arguments: {args}')
     logger.info(f'Checkpoints will be saved to {checkpoints_path}')
 
+    # ---------kkuhn-block------------------------------ prepare dataset
     transformations = get_transforms(input_size=args.image_size, test_size=args.image_size)
     train_set = data_gen.Dataset(root=args.train_txt_path, transform=transformations['val_train'])
     train_loader = data.DataLoader(train_set, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
 
     val_set = data_gen.ValDataset(root=args.val_txt_path, transform=transformations['val_test'])
     val_loader = data.DataLoader(val_set, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
+    # ---------kkuhn-block------------------------------
     if args.if_regression:
         model = make_regression_model(args.model_path)
     else:
-        model = make_model_for_24_classes(args)
+        # model = make_model(args)  # two classification
+        model = make_model_for_24_classes(args) # weight classification
 
     # ---------kkuhn-block------------------------------ saving training options and model architecture
     opt_yaml_save_path = "opt.yaml"
@@ -112,7 +115,7 @@ def main():
         # model.module.load_state_dict(checkpoint['state_dict'])
         # optimizer.load_state_dict(checkpoint['optimizer'])
 
-    for epoch in range(start_epoch, args.epochs):
+    for epoch in range(start_epoch, args.epochs):  # 500
         logger.info('\nEpoch: [%d | %d] LR: %.8f' % (epoch + 1, args.epochs, optimizer.param_groups[0]['lr']))
         # logger.info('\nEpoch: [%d | %d] LR: %f' % (epoch + 1, args.epochs, optimizer.param_groups[0]['lr']))
         if args.if_regression:
@@ -289,6 +292,7 @@ def test(use_cuda):
         test_set = data_gen.TestDataset(root=args.test_txt_path, transform=transformations['test'])
     test_loader = data.DataLoader(test_set, batch_size=args.batch_size, shuffle=True)
     # load model
+    # model = make_model_for_24_classes(args)
     model = make_model(args)
 
     if args.model_path:
@@ -499,6 +503,65 @@ class getOutofLoop(Exception):
     pass
 
 
+def test_pig_classification(use_cuda):
+    transformations = get_transforms(input_size=args.image_size, test_size=args.image_size)
+    if args.only_inference:
+        test_set = data_gen.TestDataset_folder_as_input(root=args.test_txt_path, transform=transformations['test'])
+    else:
+        test_set = data_gen.TestDataset(root=args.test_txt_path, transform=transformations['test'])
+    test_loader = data.DataLoader(test_set, batch_size=args.batch_size, shuffle=True)
+
+    model = make_model_for_24_classes(args)
+
+    if args.model_path:
+        # 加载模型
+        model.load_state_dict(torch.load(args.model_path))
+
+    if use_cuda:
+        model.cuda()
+
+    # evaluate
+    y_pred = []
+    y_true = []
+    img_paths = []
+    with torch.no_grad():
+        model.eval()  # 设置成eval模式
+        for (inputs, targets, paths) in tqdm(test_loader):
+            y_true.extend(targets.detach().tolist())
+            img_paths.extend(list(paths))
+            if use_cuda:
+                inputs, targets = inputs.cuda(), targets.cuda()
+            inputs, targets = torch.autograd.Variable(inputs), torch.autograd.Variable(targets)
+            # compute output
+            outputs = model(inputs)  # (16,2)
+            # dim=1 表示按行计算 即对每一行进行softmax
+            # probability = torch.nn.functional.softmax(outputs,dim=1)[:,1].tolist()
+            # probability = [1 if prob >= 0.5 else 0 for prob in probability]
+            # 返回最大值的索引
+            probability = torch.max(outputs, dim=1)[1].data.cpu().numpy().squeeze()
+            y_pred.extend(probability)
+        print("y_pred=", y_pred)
+
+        accuracy = metrics.accuracy_score(y_true, y_pred)
+        print("accuracy=", accuracy)
+        confusion_matrix = metrics.confusion_matrix(y_true, y_pred)
+        print("confusion_matrix=", confusion_matrix)
+        print(metrics.classification_report(y_true, y_pred))
+        # fpr,tpr,thresholds = metrics.roc_curve(y_true,y_pred)
+        # print("roc-auc score=", metrics.roc_auc_score(y_true, y_pred))
+
+        res_dict = {
+            'img_path': img_paths,
+            'label': y_true,
+            'predict': y_pred,
+
+        }
+        df = pd.DataFrame(res_dict)
+        df.to_csv(args.result_csv, index=False)
+        print(f"write to {args.result_csv} succeed ")
+
+
+
 def generate_pig_face_only_data_for_regresssion():
     original_agg_pig_dataset = Path(r"D:\ANewspace\code\pig_face_weight_correlation\datasets\pig_aggregated")
     new_agg_pig_complete = Path(r"d:\ANewspace\code\pig_face_weight_correlation\datasets\new_agg_complete")
@@ -562,8 +625,8 @@ if __name__ == "__main__":
         main()
     else:
         # test(use_cuda)
-        # test_only_for_pig_dataset(use_cuda)
-        test_for_regression(use_cuda)
-
+        # test_only_for_pig_dataset(use_cuda) # uncoment when it's if-complete-pig-face two-classification task
+        # test_for_regression(use_cuda)  # uncoment when it's a weight regression task
+        test_pig_classification(use_cuda)
         # generate_pig_face_only_data_for_regresssion()
         pass
